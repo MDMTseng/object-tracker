@@ -5,6 +5,8 @@ import dlib
 import cv2
 import argparse as ap
 import get_points
+import datetime
+import os
 
 def run(source=0, dispLoc=False):
     # Create the VideoCapture object
@@ -44,32 +46,43 @@ def run(source=0, dispLoc=False):
     tracker = [dlib.correlation_tracker() for _ in range(len(points))]
     # Provide the tracker the initial position of the object
     [tracker[i].start_track(img, dlib.rectangle(*rect)) for i, rect in enumerate(points)]
+    timetag = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    fileName=os.path.basename(source).replace(".", "_")
+    with open(fileName+'_'+timetag+'.csv', 'w', newline='') as csvfile:
+        csvfile.write(source+"\n")
+        frameCount=0
+        while True:
+            # Read frame from device or file
+            retval, img = cam.read()
+            if not retval:
+                print("Cannot capture frame device | CODE TERMINATION :( ")
+                exit()
 
-    while True:
-        # Read frame from device or file
-        retval, img = cam.read()
-        if not retval:
-            print("Cannot capture frame device | CODE TERMINATION :( ")
-            exit()
-        # Update the tracker  
-        for i in range(len(tracker)):
-            tracker[i].update(img)
-            # Get the position of th object, draw a 
-            # bounding box around it and display it.
-            rect = tracker[i].get_position()
-            pt1 = (int(rect.left()), int(rect.top()))
-            pt2 = (int(rect.right()), int(rect.bottom()))
-            cv2.rectangle(img, pt1, pt2, (255, 255, 255), 3)
-            print("Object {} tracked at [{}, {}] \r".format(i, pt1, pt2)),
-            if dispLoc:
-                loc = (int(rect.left()), int(rect.top()-20))
-                txt = "Object tracked at [{}, {}]".format(pt1, pt2)
-                cv2.putText(img, txt, loc , cv2.FONT_HERSHEY_SIMPLEX, .5, (255,255,255), 1)
-        cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
-        cv2.imshow("Image", img)
-        # Continue until the user presses ESC key
-        if cv2.waitKey(1) == 27:
-            break
+            csvfile.write("{},".format(frameCount))
+            frameCount+=1
+            # Update the tracker  
+            for i in range(len(tracker)):
+                tracker[i].update(img)
+                # Get the position of th object, draw a 
+                # bounding box around it and display it.
+                rect = tracker[i].get_position()
+                pt1 = (int(rect.left()), int(rect.top()))
+                pt2 = (int(rect.right()), int(rect.bottom()))
+                cv2.rectangle(img, pt1, pt2, (255, 255, 255), 3)
+                print("Object {} tracked at [{}, {}] \r".format(i, pt1, pt2)),
+                
+                csvfile.write("{},{},".format((pt1[0]+pt2[0])/2,(pt1[1]+pt2[1])/2))
+                if dispLoc:
+                    loc = (int(rect.left()), int(rect.top()-20))
+                    txt = "Object tracked at [{}, {}]".format(pt1, pt2)
+                    cv2.putText(img, txt, loc , cv2.FONT_HERSHEY_SIMPLEX, .5, (255,255,255), 1)
+            
+            csvfile.write("\n")
+            cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
+            cv2.imshow("Image", img)
+            # Continue until the user presses ESC key
+            if cv2.waitKey(1) == 27:
+                break
 
     # Relase the VideoCapture object
     cam.release()
